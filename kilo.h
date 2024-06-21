@@ -107,7 +107,6 @@ typedef struct econtent {
 
 EContent F = ECONTENT_INIT;
 
-
 /* 初始化编辑器 */
 
 // 编辑器的全局属性
@@ -127,6 +126,8 @@ struct eConfig {
     int cmdMode;
     // 状态栏数据
     char *statusMsg;
+    // 是否需要释放statusMsg的内存
+    int isStatusMsgNeedFree;
     // 是否刷新屏幕  0 不刷新 1 刷新
     int refreshFlag;
     // 是否退出编辑器，0 不退出，1 退出
@@ -139,6 +140,8 @@ struct eConfig {
 
 // 配置项
 char *confKeyArr[] = {"softBRFlag"};
+
+#define CONF_FILENAME "ki.conf"
 
 #define confKeyArrLen ((int) (sizeof(confKeyArr) / sizeof( char *)))
 

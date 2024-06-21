@@ -25,13 +25,14 @@ int main(int argc, char const *argv[]) {
     }
 
     // 读取文件到内存中
+    char *msg = NULL;
     if (F.filename) {
         if (readFile(F.filename, &F) == -1) {
             perror("read file.");
             return 0;
         }
         if (F.fileStatus != NULL) {
-            char *msg = malloc(strlen(F.filename) + strlen(F.fileStatus) + 2);
+            msg = malloc(strlen(F.filename) + strlen(F.fileStatus) + 2);
             int idx = 0;
             memcpy(&msg[idx], F.filename, strlen(F.filename));
             idx += strlen(F.filename);
@@ -62,8 +63,17 @@ int main(int argc, char const *argv[]) {
     write(STDOUT_FILENO, CLEAR_SCREEN, strlen(CLEAR_SCREEN));
 
     // 释放内存
+    if (msg != NULL) {
+        free(msg);
+    }
     free(F.filename);
     free(screen);
+
+    for (int i = 0; i < F.size; i++) {
+        free(F.pErow[i].row);
+        free(F.pErow[i].rowTab);
+    }
+    free(F.pErow);
     return 0;
 }
 
@@ -359,7 +369,7 @@ int initEditor() {
     E.exitFlag = 0;
 
     // 读取配置文件
-    E.confFileName = "ki.conf";
+    E.confFileName = CONF_FILENAME;
     EContent CONF = ECONTENT_INIT;
     if (readFile(E.confFileName, &CONF) == -1) {
         // 默认配置
@@ -369,8 +379,12 @@ int initEditor() {
         // 默认配置
         E.softBRFlag = 0;
     }
-    
 
+    for (int i = 0; i < CONF.size; i++) {
+        free(CONF.pErow[i].row);
+        free(CONF.pErow[i].rowTab);
+    }
+    free(CONF.pErow);
     return 0;
 }
 
@@ -427,7 +441,7 @@ int readFile(char *filename, EContent *F) {
         insertRow(F, 0, "", 0);
         F->sumChars = 0;
         return 0;
-    } 
+    }
 
     // 获取文件大小：先将读写指针移动到文件末尾，然后获取当前指针的位置，这个位置就代表文件大小，
     // 然后再调用rewind函数将文件指针移到开头
@@ -439,7 +453,7 @@ int readFile(char *filename, EContent *F) {
     char * buffer = malloc(fileSize + 1);
     fread(buffer, sizeof(char), fileSize, file);
     buffer[fileSize] = '\0';
-    close(file->_fileno);
+    fclose(file);
 
     int lineStart = 0;
     int lineEnd = 0;
@@ -459,6 +473,7 @@ int readFile(char *filename, EContent *F) {
         }
         lineEnd++;
     }
+    free(buffer);
 
     if (fileSize == 0) {
         insertRow(F, lineIdx, "", 0);
@@ -595,6 +610,7 @@ void insertEnterCharInCurPos() {
     erow = &F.pErow[E.cy];
     erow->size = E.cx;
     erow->row[E.cx] = '\0';
+    free(erow->rowTab);
     updateRowTabByRow(erow);
 
     E.cx = 0;
@@ -610,6 +626,7 @@ void deleteCurChar() {
         memmove(&erow->row[E.cx - 1], &erow->row[E.cx], erow->size - E.cx);
         erow->size--;
         erow->row[erow->size] = '\0';
+        free(erow->rowTab);
         updateRowTabByRow(erow);
 
         E.cx--;
@@ -623,6 +640,7 @@ void deleteCurChar() {
         memcpy(&preErow->row[preErow->size], erow->row, erow->size);
         preErow->size += erow->size;
         preErow->row[preErow->size] = '\0';
+        free(preErow->rowTab);
         updateRowTabByRow(preErow);
 
         deleteRow(&F, E.cy);
@@ -642,6 +660,7 @@ void stupidInsert(int c) {
     }
     erow->row[E.cx] = c;
     erow->size++;
+    free(erow->rowTab);
     updateRowTabByRow(erow);
 
     E.cx++;
@@ -652,17 +671,25 @@ void deleteRow(EContent *F, int rowIdx) {
     Erow *erow = &F->pErow[rowIdx];
     free(erow->row);
     free(erow->rowTab);
+    erow->row = NULL;
+    erow->rowTab = NULL;
 
     memmove(F->pErow + rowIdx, F->pErow + rowIdx + 1, 
-       (F->size - rowIdx) * sizeof(Erow));
+       (F->size - (rowIdx + 1)) * sizeof(Erow));
     F->size--;
 }
 
 void insertRow(EContent *F, int rowIdx, char *buffer, int len) {
-    F->pErow = realloc(F->pErow, (F->size + 1) * sizeof(Erow));
+    if (F->size == 0) {
+        F->pErow = malloc(sizeof(Erow));
+    } else {
+        F->pErow = realloc(F->pErow, (F->size + 1) * sizeof(Erow));
+    }
+    
     // 如果要插入的行不是最后一行，那么rowIdx之后的所有行都要后移一位
     if (rowIdx != F->size) {
-        memmove(F->pErow + rowIdx + 1, F->pErow + rowIdx, (F->size - rowIdx) * sizeof(Erow));
+        memmove(F->pErow + rowIdx + 1, F->pErow + rowIdx, 
+            (F->size - rowIdx) * sizeof(Erow));
     }
     F->size++;
 
@@ -680,7 +707,7 @@ void updateRowTabByRow(Erow *erow) {
     // 将tab键转换为空格
     int rowTabLen = 0;
     for (int i = 0; i < erow->size; i++) {
-        if (erow->row[i] == '\t') {
+        if (erow->row[i] == TAB) {
             rowTabLen += TAB_STOP - (rowTabLen % TAB_STOP);
         } else {
             rowTabLen++;
@@ -689,10 +716,10 @@ void updateRowTabByRow(Erow *erow) {
 
     erow->rowTab = malloc(rowTabLen + 1);
     erow->sizeTab = rowTabLen;
-    
+
     int j = 0;
     for (int i = 0; i < erow->size; i++) {
-        if (erow->row[i] == '\t') {
+        if (erow->row[i] == TAB) {
             int len = TAB_STOP - (j % TAB_STOP);
             while (len--) {
                 erow->rowTab[j] = ' ';
@@ -747,7 +774,7 @@ void renderTextArea() {
                 count++;
             }
             if (count >= E.textAreaRows) {
-                str.chars[idx] = '\0';
+                str.chars[idx - 1] = '\0';
                 str.size = idx;
                 break;
             }
@@ -755,6 +782,7 @@ void renderTextArea() {
     }
 
     write(STDOUT_FILENO, str.chars, str.size);
+    strFree(&str);
 }
 
 void renderStatusLine(char *msg) {
