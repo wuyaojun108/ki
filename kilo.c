@@ -61,7 +61,9 @@ int main(int argc, char const *argv[]) {
     refreshCursor(1, 1);
     write(STDOUT_FILENO, CLEAR_SCREEN, strlen(CLEAR_SCREEN));
 
+    // 释放内存
     free(F.filename);
+    free(screen);
     return 0;
 }
 
@@ -367,6 +369,8 @@ int initEditor() {
         // 默认配置
         E.softBRFlag = 0;
     }
+    
+
     return 0;
 }
 
@@ -417,7 +421,6 @@ int editorSave(char *filename) {
 
 // 读取文件内容
 int readFile(char *filename, EContent *F) {
-    F->filename = filename;
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
         F->fileStatus = "[New File]";
