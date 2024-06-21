@@ -61,6 +61,7 @@ int main(int argc, char const *argv[]) {
     refreshCursor(1, 1);
     write(STDOUT_FILENO, CLEAR_SCREEN, strlen(CLEAR_SCREEN));
 
+    free(F.filename);
     return 0;
 }
 
@@ -822,9 +823,21 @@ int enableRawMode() {
     atexit(disableRawMode);
 
     rawTermios = origTermios;
-    rawTermios.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+    // IXON：用于设置或检查终端是否启用了软件流控制，
+    //   Ctrl+S 和 Ctrl+Q：按下Ctrl+S将停止数据传输，按下Ctrl+Q将恢复数据传输
+    // ICRNL：设置或检查终端是否将输入的回车符（\r）转换为换行符（\n）
+    rawTermios.c_iflag &= ~(ICRNL | IXON);
+    // rawTermios.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+
+    // OPOST：用于设置或检查终端是否启用了输出处理，换行符（\n）转换为回车换行符（\r\n）
     rawTermios.c_oflag &= ~(OPOST);
-    rawTermios.c_cflag |= (CS8);
+
+    // rawTermios.c_cflag |= (CS8);
+    
+    // ECHO：回显，表示终端会显示用户的输入。这里关闭了回显，
+    // ICANON：经典模式。在这里关闭了行缓冲
+    // ISIG：信号模式。在这里关闭了信号模式，程序不再处理Ctrl+C和Ctrl+Z
+    // IEXTEN：用于设置或检查终端是否启用了扩展输入处理。程序不再处理ctrl+v
     rawTermios.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
 
     // 设置read函数最多等待100毫秒，没有数据也返回
