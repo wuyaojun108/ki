@@ -158,11 +158,6 @@ int getRowLimit(Erow *erow) {
     int rowLimit = 0;
     if (E.cmdMode == 0) {
         rowLimit = erow->size > 0 ? erow->size - 1 : 0;
-        // if (erow->size > 0) {
-        //     rowLimit = erow->size - 1;
-        // } else {
-        //     rowLimit = 0;
-        // }
     } else {
         rowLimit = erow->size;
     }
@@ -458,7 +453,6 @@ int readFile(char *filename, EContent *F) {
                 lineIdx++;
                 lineStart = lineEnd + 1;
             }
-            
         }
         lineEnd++;
     }
@@ -469,7 +463,7 @@ int readFile(char *filename, EContent *F) {
 
     int sumChars = 0;
     for (int i = 0; i < F->size; i++) {
-        sumChars += F->pErow[i].size + 1;  // 每行结尾的回车符
+        sumChars += F->pErow[i].size + 1;  // 每行结尾的换行符
     }
     F->sumChars = sumChars;
     return 0;
@@ -772,16 +766,6 @@ void renderStatusLine(char *msg) {
 
     rightBufLen = snprintf(rightBuf, 32, "%dL,%dC  %d,%d", 
             F.size, F.sumChars, E.cy + 1, E.cx + 1);
-    // if (E.cx != E.rx) {
-    //     rightBufLen = snprintf(rightBuf, 32, "%dL,%dC  %d,%d-%d", 
-    //         F.size, F.sumChars, E.cy + 1, E.cx + 1, E.rx + 1);
-    // } else if (E.cx == 0 && F.pErow[E.cy].size == 0) {
-    //     rightBufLen = snprintf(rightBuf, 32, "%dL,%dC  %d,%d-%d", 
-    //         F.size, F.sumChars, E.cy + 1, 0, E.rx + 1);
-    // } else {
-    //     rightBufLen = snprintf(rightBuf, 32, "%dL,%dC  %d,%d", 
-    //         F.size, F.sumChars, E.cy + 1, E.rx + 1);
-    // }
 
     int middleLen = bufLen - msgLen - rightBufLen;
 
